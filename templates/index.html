@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>Combine Studio — Consolidated Payment Receipt Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       COMBINE STUDIO — Self-Contained Responsive SaaS Design System
+       ========================================================================== */
+    :root {
+      --bg-canvas: #F3F6FA;
+      --bg-card: #FFFFFF;
+      --bg-obsidian: #0F172A;
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #64748B;
+      --border-subtle: #E2E8F0;
+      --accent-emerald: #10B981;
+      --accent-emerald-dark: #047857;
+      --accent-emerald-soft: #ECFDF5;
+      --accent-emerald-border: #A7F3D0;
+      --accent-amber-soft: #FFFBEB;
+      --accent-amber-border: #FDE68A;
+      --accent-amber-text: #92400E;
+      --accent-rose: #F43F5E;
+      --accent-rose-soft: #FFF1F2;
+      --radius-xl: 20px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --shadow-card: 0 10px 30px -10px rgba(15, 23, 42, 0.06), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+      --shadow-receipt: 0 20px 50px -12px rgba(15, 23, 42, 0.12), 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+      --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Strict SVG Sizing Guard — Prevents Oversized Icons on Any Device */
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .icon-sm { width: 18px !important; height: 18px !important; }
+    .icon-md { width: 22px !important; height: 22px !important; }
+    .icon-lg { width: 26px !important; height: 26px !important; }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ==========================================================================
+       CENTERED HEADER & SLOW LUCIDE ICON MORPH ANIMATION (Images -> CPU-AI -> Image)
+       ========================================================================== */
+    .top-nav {
+      background: var(--bg-obsidian);
+      color: #FFFFFF;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 24px rgba(15, 23, 42, 0.18);
+    }
+    .nav-centered-container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 6px;
+    }
+    .brand-center-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    /* Animated Morphing Logo Box */
+    .morph-logo-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #10B981 0%, #059669 55%, #0EA5E9 100%);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .morph-icon-stage {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      opacity: 0;
+      will-change: opacity, transform, filter;
+    }
+    .morph-icon-stage svg {
+      width: 25px !important;
+      height: 25px !important;
+      stroke-width: 2;
+    }
+
+    /* Slow 12-Second 3-Stage Transition:
+       Stage 1 (0% - 33%): Lucide 'images' (Multiple Images)
+       Stage 2 (33% - 66%): Lucide 'cpu' (AI Processor Chip)
+       Stage 3 (66% - 100%): Lucide 'image' (Consolidated Receipt Image) */
+    @keyframes morphStage1 {
+      0%, 4% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0px); }
+      26% { opacity: 1; transform: scale(1.03) rotate(0deg); filter: blur(0px); }
+      33%, 93% { opacity: 0; transform: scale(0.72) rotate(-10deg); filter: blur(3px); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0px); }
+    }
+    @keyframes morphStage2 {
+      0%, 26% { opacity: 0; transform: scale(0.72) rotate(10deg); filter: blur(3px); }
+      34%, 59% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0px); }
+      67%, 100% { opacity: 0; transform: scale(0.72) rotate(-10deg); filter: blur(3px); }
+    }
+    @keyframes morphStage3 {
+      0%, 59% { opacity: 0; transform: scale(0.72) rotate(10deg); filter: blur(3px); }
+      67%, 92% { opacity: 1; transform: scale(1) rotate(0deg); filter: blur(0px); }
+      100% { opacity: 0; transform: scale(0.72) rotate(-10deg); filter: blur(3px); }
+    }
+
+    .stage-images {
+      animation: morphStage1 12s infinite ease-in-out;
+    }
+    .stage-cpu-ai {
+      animation: morphStage2 12s infinite ease-in-out;
+    }
+    .stage-single-image {
+      animation: morphStage3 12s infinite ease-in-out;
+    }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: #FFFFFF;
+    }
+    .brand-subtitle {
+      font-size: 12.5px;
+      color: #94A3B8;
+      font-weight: 500;
+    }
+
+    @keyframes shimmerBar {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    /* ==========================================================================
+       MAIN WORKSPACE GRID
+       ========================================================================== */
+    .main-wrap {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 26px 24px 48px 24px;
+    }
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      gap: 26px;
+      align-items: start;
+    }
+    .left-col, .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 0;
+    }
+
+    .bento-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-card);
+      padding: 20px 22px;
+    }
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-icon-pill {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--accent-emerald-soft);
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       UPLOAD DROPZONE (Only 'Select Receipt Images' + 'Clear' Directly Below)
+       ========================================================================== */
+    .upload-zone {
+      border: 2px dashed #CBD5E1;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+      padding: 24px 18px;
+      text-align: center;
+      transition: all 0.22s var(--transition-smooth);
+      cursor: pointer;
+    }
+    .upload-zone:hover, .upload-zone.dropzone-active {
+      border-color: var(--accent-emerald);
+      background: #F0FDF4;
+    }
+    .upload-icon-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px auto;
+      color: var(--accent-emerald);
+    }
+    .upload-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .upload-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      max-width: 340px;
+      margin: 4px auto 16px auto;
+    }
+    .upload-btn-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      max-width: 240px;
+      margin: 0 auto;
+    }
+    .upload-btn-stack .btn {
+      width: 100%;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.18s var(--transition-smooth);
+      white-space: nowrap;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+      transform: translateY(-1px);
+    }
+    .btn-dark {
+      background: var(--bg-obsidian);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+    }
+    .btn-dark:hover {
+      background: #1E293B;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #FFFFFF;
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+    }
+    .btn-secondary:hover {
+      background: #F8FAFC;
+      border-color: #CBD5E1;
+    }
+    .btn-danger-soft {
+      background: var(--accent-rose-soft);
+      color: var(--accent-rose);
+      border-color: #FECDD3;
+    }
+    .btn-danger-soft:hover {
+      background: #FFE4E6;
+    }
+
+    /* Progress Bar */
+    .progress-box {
+      margin-top: 14px;
+      background: #FFFFFF;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background: #E2E8F0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10B981, #0EA5E9, #10B981);
+      background-size: 200% 100%;
+      animation: shimmerBar 2s linear infinite;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* Form Controls */
+    .fields-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 12px;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .field-group.full-span {
+      grid-column: 1 / -1;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .field-input {
+      width: 100%;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      transition: all 0.15s ease;
+    }
+    .field-input:focus {
+      outline: none;
+      background: #FFFFFF;
+      border-color: var(--accent-emerald);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+    }
+
+    /* Transaction Editor Items */
+    .tx-editor-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .tx-edit-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .tx-edit-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .tx-num-badge {
+      background: var(--bg-obsidian);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ==========================================================================
+       EXACT CONSOLIDATED PAYMENT RECEIPT PREVIEW (Right Column)
+       Matches WhatsApp Image 2026-10-19 at 8.01.14 PM & 8.01.15 PM
+       ========================================================================== */
+    .receipt-preview-shell {
+      background: #E9EEF5;
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      border: 1px solid #CBD5E1;
+    }
+    .export-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .export-hint {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .export-btns {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* White Paper Receipt Sheet */
+    .receipt-paper {
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 40px 44px 34px 44px;
+      box-shadow: var(--shadow-receipt);
+      max-width: 820px;
+      margin: 0 auto;
+      color: #0F172A;
+    }
+
+    /* 1. Dark Navy Header Banner */
+    .rcp-header-banner {
+      background: #0F172A;
+      border-radius: 14px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .rcp-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .rcp-subtitle {
+      font-size: 14px;
+      color: #94A3B8;
+      font-weight: 400;
+      margin-top: 6px;
+    }
+    .rcp-status-pill {
+      background: #10B981;
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 8px 18px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* 2. Beneficiary & Transfer Summary Box */
+    .rcp-summary-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 14px;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px 32px;
+      margin-bottom: 28px;
+    }
+    .rcp-summary-box.has-notes {
+      grid-template-columns: 1fr 1fr 1.05fr;
+    }
+    .rcp-summary-col {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
+    .rcp-notes-col {
+      border-left: 1px solid #E2E8F0;
+      padding-left: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .rcp-meta-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .rcp-meta-value {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #0F172A;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+    .rcp-notes-text {
+      font-size: 14.5px;
+      font-weight: 500;
+      color: #0F172A;
+      white-space: pre-line;
+      line-height: 1.55;
+    }
+
+    /* 3. Transaction Details Section & Table */
+    .rcp-section-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 14px;
+    }
+    .rcp-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 24px;
+    }
+    .rcp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .rcp-table thead tr {
+      background: #EEF2F6;
+      border-bottom: 1.5px solid #CBD5E1;
+    }
+    .rcp-table th {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #475569;
+      text-align: left;
+      padding: 13px 16px;
+      white-space: nowrap;
+    }
+    .rcp-table th.col-amt,
+    .rcp-table td.col-amt {
+      text-align: right;
+    }
+    .rcp-table tbody tr {
+      border-bottom: 1px solid #F1F5F9;
+      background: #FFFFFF;
+    }
+    .rcp-table td {
+      padding: 14px 16px;
+      color: #0F172A;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+    .rcp-table td.col-num {
+      width: 52px;
+      color: #0F172A;
+    }
+    .rcp-table td.col-ref {
+      font-weight: 700;
+    }
+    .rcp-table td.col-dt {
+      color: #1E293B;
+    }
+    .rcp-table td.col-amt {
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* 4. Grand Total Paid Amount Box */
+    .rcp-grand-box {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      border-radius: 12px;
+      padding: 22px 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .rcp-grand-label {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: #047857;
+    }
+    .rcp-grand-amount {
+      font-size: 28px;
+      font-weight: 800;
+      color: #047857;
+      letter-spacing: -0.02em;
+    }
+
+    /* 5. Notice Box */
+    .rcp-notice-box {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #92400E;
+      margin-bottom: 26px;
+    }
+
+    /* 6. Bottom Footer */
+    .rcp-footer {
+      border-top: 1px dashed #CBD5E1;
+      padding-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      color: #64748B;
+    }
+
+    /* Editable Hover Outline inside Live Receipt Preview */
+    [contenteditable="true"] {
+      border-radius: 4px;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: text;
+    }
+    [contenteditable="true"]:hover {
+      background-color: rgba(16, 185, 129, 0.08);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    }
+    [contenteditable="true"]:focus {
+      outline: none;
+      background-color: rgba(16, 185, 129, 0.12);
+      box-shadow: 0 0 0 2px #10B981;
+    }
+
+    /* Optional Source Screenshots Grid */
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .screenshot-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .screenshot-img-wrap {
+      background: #0F172A;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 140px;
+      overflow: hidden;
+    }
+    .screenshot-img-wrap img {
+      max-height: 128px;
+      max-width: 100%;
+      object-fit: contain;
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99;
+      background: var(--bg-obsidian);
+      color: #FFFFFF;
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toast-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #10B981;
+      flex-shrink: 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1120px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-wrap {
+        padding: 16px 12px 36px 12px;
+      }
+      .receipt-preview-shell {
+        padding: 12px;
+      }
+      .receipt-paper {
+        padding: 22px 18px;
+      }
+      .rcp-header-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
+      }
+      .rcp-title {
+        font-size: 20px;
+      }
+      .rcp-summary-box,
+      .rcp-summary-box.has-notes {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+      .rcp-notes-col {
+        border-left: none;
+        border-top: 1px solid #E2E8F0;
+        padding-left: 0;
+        padding-top: 14px;
+      }
+      .rcp-grand-box {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 18px;
+      }
+      .fields-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="toast-box hidden">
+    <span id="toastDot" class="toast-dot"></span>
+    <span id="toastMessage">Action completed</span>
+  </div>
+
+  <!-- Centered Header with Slow Morphing Lucide Icon (Images -> CPU-AI -> Image) -->
+  <header class="top-nav">
+    <div class="nav-centered-container">
+      <div class="brand-center-row">
+        <div class="morph-logo-box" title="Combine Studio: Images → AI OCR → Consolidated Receipt">
+          <!-- Stage 1: Lucide 'images' icon -->
+          <div class="morph-icon-stage stage-images">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 22H4a2 2 0 0 1-2-2V6" />
+              <path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18" />
+              <circle cx="12" cy="8" r="2" />
+              <rect width="16" height="16" x="6" y="2" rx="2" />
+            </svg>
+          </div>
+          <!-- Stage 2: Lucide 'cpu' (AI Processor) icon -->
+          <div class="morph-icon-stage stage-cpu-ai">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="16" height="16" x="4" y="4" rx="2" />
+              <rect width="6" height="6" x="9" y="9" rx="1" />
+              <path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" />
+              <path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" />
+            </svg>
+          </div>
+          <!-- Stage 3: Lucide 'image' icon -->
+          <div class="morph-icon-stage stage-single-image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+          </div>
+        </div>
+        <h1 class="brand-title">Combine Studio</h1>
+      </div>
+      <p class="brand-subtitle">Multi-Image AI Receipt Extractor &amp; Consolidated Payment Receipt Studio</p>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="main-wrap">
+    <div class="workspace-grid">
+
+      <!-- ==================== LEFT COLUMN: UPLOAD & FULL EDITOR ==================== -->
+      <div class="left-col">
+
+        <!-- 1. Upload Card (Only 'Select Receipt Images' + 'Clear' Below It) -->
+        <div class="bento-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <div class="card-icon-pill">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Upload Receipt Images</h2>
+                <p class="card-subtitle">Select multiple transaction screenshots simultaneously</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="dropzone" class="upload-zone">
+            <input id="fileInput" type="file" accept="image/*" multiple class="hidden" />
+            <div class="upload-icon-circle">
+              <svg class="icon-lg" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              </svg>
+            </div>
+            <p class="upload-title">Drop receipt images here</p>
+            <p class="upload-desc">Supports PhonePe, Paytm, Google Pay, and Bank IMPS/NEFT screenshots</p>
+
+            <div class="upload-btn-stack" onclick="event.stopPropagation();">
+              <button id="selectFilesBtn" type="button" class="btn btn-primary">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Select Receipt Images</span>
+              </button>
+              <button id="clearAllBtn" type="button" class="btn btn-danger-soft">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span>Clear</span>
+              </button>
+            </div>
+
+            <!-- OCR Progress Bar -->
+            <div id="ocrProgressWrap" class="progress-box hidden" onclick="event.stopPropagation();">
+              <div class="progress-meta">
+                <span id="ocrProgressLabel">Extracting receipt data...</span>
+                <span id="ocrProgressPct">0%</span>
+              </div>
+              <div class="progress-track">
+                <div id="ocrProgressBar" class="progress-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Full Receipt Header, Beneficiary & Summary Controls -->
+        <div class="bento-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <div class="card-icon-pill">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Receipt Details &amp; Beneficiary Editor</h2>
+                <p class="card-subtitle">Full control over every header, beneficiary, and summary field</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="fields-grid-2">
+            <div class="field-group">
+              <label class="field-label" for="metaAccountInput">Beneficiary Account</label>
+              <input id="metaAccountInput" type="text" placeholder="e.g. 14680100197733" class="field-input mono" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaIfscInput">IFSC Code</label>
+              <input id="metaIfscInput" type="text" placeholder="e.g. FDRL0001468" class="field-input mono" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaPurposeInput">Transfer Purpose</label>
+              <input id="metaPurposeInput" type="text" value="Withdrawal" class="field-input" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaMethodInput">Transfer Method</label>
+              <input id="metaMethodInput" type="text" value="IMPS / NEFT" class="field-input" />
+            </div>
+            <div class="field-group full-span">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="field-label" for="metaNotesInput">Additional Notes (Optional Right Column)</label>
+                <button id="autoFillNotesBtn" type="button" style="background: none; border: none; color: var(--accent-emerald); font-size: 11px; font-weight: 700; cursor: pointer;">
+                  Auto-Fill from Beneficiary
+                </button>
+              </div>
+              <textarea id="metaNotesInput" rows="3" placeholder="Leave blank for 2-column layout, or enter Account, Name, IFSC, Amount to display the 3rd 'ADDITIONAL NOTES' column..." class="field-input mono" style="font-size: 12px;"></textarea>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaTitleInput">Receipt Title</label>
+              <input id="metaTitleInput" type="text" value="Consolidated Payment Receipt" class="field-input" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaBadgeInput">Status Badge</label>
+              <input id="metaBadgeInput" type="text" value="PAID IN FULL" class="field-input" />
+            </div>
+            <div class="field-group full-span">
+              <label class="field-label" for="metaSubtitleInput">Receipt Subtitle</label>
+              <input id="metaSubtitleInput" type="text" value="Statement of Successful Money Transfers" class="field-input" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaGrandLabelInput">Grand Total Label</label>
+              <input id="metaGrandLabelInput" type="text" value="Grand Total Paid Amount" class="field-input" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="metaFooterLeftInput">Footer Left Label</label>
+              <input id="metaFooterLeftInput" type="text" value="Consolidated Transaction Record" class="field-input" />
+            </div>
+            <div class="field-group full-span">
+              <label class="field-label" for="metaNoticeInput">Notice Disclaimer Text</label>
+              <textarea id="metaNoticeInput" rows="2" class="field-input" style="font-size: 12px;">Notice: This is a computer-generated consolidated receipt based on user-provided transaction records. No signature is required. Electronic receipt owns no official legal effect.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Individual Transaction Rows Editor -->
+        <div class="bento-card">
+          <div class="card-header-row">
+            <div class="card-title-group">
+              <div class="card-icon-pill">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Transaction Rows (<span id="editorTxCount">0</span>)</h2>
+                <p class="card-subtitle">Edit Reference Number, Date &amp; Time, or Amount for each row</p>
+              </div>
+            </div>
+            <button id="addBlankRowBtn" type="button" class="btn btn-secondary" style="padding: 6px 11px; font-size: 12px;">
+              + Add Row
+            </button>
+          </div>
+
+          <div id="txEditorList" class="tx-editor-list">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <label style="display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer;">
+              <input id="showScreenshotsToggle" type="checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-emerald);" />
+              <span>Show Uploaded Screenshots</span>
+            </label>
+          </div>
+
+          <div id="sourceScreenshotsSection" class="hidden">
+            <div id="screenshotsGrid" class="screenshots-grid"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== RIGHT COLUMN: EXACT CONSOLIDATED PAYMENT RECEIPT ==================== -->
+      <div class="right-col">
+        <div class="receipt-preview-shell">
+
+          <!-- Top Export Action Bar -->
+          <div class="export-bar">
+            <div class="export-hint">
+              <svg class="icon-sm" width="18" height="18" fill="none" stroke="#10B981" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              <span>Tip: Click any text directly on the receipt below or use the left editor to customize</span>
+            </div>
+
+            <div class="export-btns">
+              <button id="downloadPdfBtn" type="button" class="btn btn-primary">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Download PDF</span>
+              </button>
+              <button id="downloadPngBtn" type="button" class="btn btn-dark">
+                <svg class="icon-sm" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Download as Image (PNG)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- White Paper Consolidated Payment Receipt -->
+          <div id="receiptPaper" class="receipt-paper">
+
+            <!-- 1. Dark Navy Header Banner -->
+            <div class="rcp-header-banner">
+              <div>
+                <h2 id="previewTitle" contenteditable="true" spellcheck="false" class="rcp-title">Consolidated Payment Receipt</h2>
+                <p id="previewSubtitle" contenteditable="true" spellcheck="false" class="rcp-subtitle">Statement of Successful Money Transfers</p>
+              </div>
+              <div id="previewBadge" contenteditable="true" spellcheck="false" class="rcp-status-pill">PAID IN FULL</div>
+            </div>
+
+            <!-- 2. Beneficiary & Transfer Summary Box -->
+            <div id="previewSummaryBox" class="rcp-summary-box">
+              <div class="rcp-summary-col">
+                <div>
+                  <div class="rcp-meta-label">BENEFICIARY ACCOUNT</div>
+                  <div id="previewAccount" contenteditable="true" spellcheck="false" class="rcp-meta-value">—</div>
+                </div>
+                <div>
+                  <div class="rcp-meta-label">TRANSFER PURPOSE</div>
+                  <div id="previewPurpose" contenteditable="true" spellcheck="false" class="rcp-meta-value">Withdrawal</div>
+                </div>
+              </div>
+
+              <div class="rcp-summary-col">
+                <div>
+                  <div class="rcp-meta-label">IFSC CODE</div>
+                  <div id="previewIfsc" contenteditable="true" spellcheck="false" class="rcp-meta-value">—</div>
+                </div>
+                <div>
+                  <div class="rcp-meta-label">TRANSFER METHOD</div>
+                  <div id="previewMethod" contenteditable="true" spellcheck="false" class="rcp-meta-value">IMPS / NEFT</div>
+                </div>
+              </div>
+
+              <!-- Optional 3rd Column: ADDITIONAL NOTES (Shown automatically when Additional Notes has content) -->
+              <div id="previewNotesCol" class="rcp-notes-col hidden">
+                <div class="rcp-meta-label">ADDITIONAL NOTES</div>
+                <div id="previewNotes" contenteditable="true" spellcheck="false" class="rcp-notes-text"></div>
+              </div>
+            </div>
+
+            <!-- 3. Transaction Details Section & Table -->
+            <h3 class="rcp-section-title">Transaction Details</h3>
+            <div class="rcp-table-wrap">
+              <table class="rcp-table">
+                <thead>
+                  <tr>
+                    <th class="col-num">#</th>
+                    <th>Reference Number</th>
+                    <th>Payment Date &amp; Time</th>
+                    <th class="col-amt">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody id="previewTableBody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 4. Grand Total Paid Amount Banner -->
+            <div class="rcp-grand-box">
+              <span id="previewGrandLabel" contenteditable="true" spellcheck="false" class="rcp-grand-label">Grand Total Paid Amount</span>
+              <span id="previewGrandValue" class="rcp-grand-amount">₹0.00</span>
+            </div>
+
+            <!-- 5. Notice Box -->
+            <div id="previewNoticeBox" contenteditable="true" spellcheck="false" class="rcp-notice-box">
+              <strong>Notice:</strong> This is a computer-generated consolidated receipt based on user-provided transaction records. No signature is required. Electronic receipt owns no official legal effect.
+            </div>
+
+            <!-- 6. Bottom Footer -->
+            <div class="rcp-footer">
+              <span id="previewFooterLeft" contenteditable="true" spellcheck="false">Consolidated Transaction Record</span>
+              <span id="previewFooterRight">0 transactions</span>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // =========================================================================
+    // STATE: Starts Completely Empty (No Presets!)
+    // =========================================================================
+    let receiptsState = [];
+
+    const receiptMeta = {
+      title: "Consolidated Payment Receipt",
+      subtitle: "Statement of Successful Money Transfers",
+      badge: "PAID IN FULL",
+      beneficiary_account: "",
+      ifsc_code: "",
+      transfer_purpose: "Withdrawal",
+      transfer_method: "IMPS / NEFT",
+      additional_notes: "",
+      grand_total_label: "Grand Total Paid Amount",
+      notice_text: "Notice: This is a computer-generated consolidated receipt based on user-provided transaction records. No signature is required. Electronic receipt owns no official legal effect.",
+      footer_left: "Consolidated Transaction Record"
+    };
+
+    const KNOWN_BANKS_JS = [
+      "South Indian Bank", "Kerala Grameena Bank", "The Federal Bank Ltd", "Federal Bank",
+      "State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank", "Canara Bank",
+      "Punjab National Bank", "Bank of Baroda", "Union Bank of India", "Kotak Mahindra Bank",
+      "IndusInd Bank", "Yes Bank", "IDFC First Bank", "IDBI Bank", "Indian Bank",
+      "Indian Overseas Bank", "Central Bank of India", "Bank of India", "CSB Bank",
+      "Abu Dhabi Commercial Bank", "Emirates NBD", "First Abu Dhabi Bank"
+    ];
+
+    function showToast(msg, type = "success") {
+      const box = document.getElementById("toastContainer");
+      const dot = document.getElementById("toastDot");
+      const text = document.getElementById("toastMessage");
+      text.textContent = msg;
+      dot.style.background = type === "error" ? "#F43F5E" : (type === "info" ? "#0EA5E9" : "#10B981");
+      box.classList.remove("hidden");
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => box.classList.add("hidden"), 3400);
+    }
+
+    function formatRupee(num) {
+      const val = Number(num) || 0;
+      return "₹" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function escapeAttr(str) {
+      return String(str ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // =========================================================================
+    // OCR SANITIZERS & UNIVERSAL PARSER
+    // =========================================================================
+    function normalizeMaskedAccountJS(rawAcc) {
+      let s = String(rawAcc || "").trim();
+      s = s.replace(/([XK*0-9])\s+(?=\d{2,6}\b)/gi, "$1");
+      const m = s.match(/^([XK*x]{4,})([0-9]{3,8})$/);
+      if (m) return "X".repeat(m[1].length) + m[2];
+      return s;
+    }
+
+    function cleanIfscJS(code) {
+      const c = String(code || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+      if (c.length === 11) {
+        return c.slice(0, 4) + c.slice(4).replace(/O/g, "0");
+      }
+      return c;
+    }
+
+    function cleanOcrAmountJS(rawSegment) {
+      if (!rawSegment) return 0.0;
+      let s = String(rawSegment).trim();
+
+      if (/\b\d{1,2}:\d{2}\b/.test(s) && !/[₹$,]\d/.test(s)) {
+        s = s.replace(/\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\s*(?:on\s+\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})?/gi, " ");
+      }
+      if (/=/.test(s) && /Exchange\s*Rate|\b1\s*[A-Z]{3}\s*=/i.test(s)) {
+        return 0.0;
+      }
+
+      const hadExplicitMarker = /^[\s:]*?(?:INR|Rs\.?|AED|USD|EUR|GBP|MRP|[₹$€£=~?tfFRzZ+\-*•]+)/i.test(s);
+      s = s.replace(/^(?:INR|Rs\.?|AED|USD|EUR|GBP|MRP|[\s:₹$€£=~?tfFRzZ+\-*•]+)+/i, "").trim();
+
+      let markerFound = hadExplicitMarker;
+      if (/^[27]\s+\d/.test(s)) {
+        s = s.replace(/^[27]\s+/, "").trim();
+        markerFound = true;
+      }
+
+      s = s.replace(/(\d)\.(\d{3})\.(\d{2})\b/g, "$1,$2.$3");
+      s = s.replace(/,\s+(?=\d{3}\b)/g, ",");
+
+      const m = s.match(/([0-9][0-9,]*(?:\.[0-9]{1,2})?)/);
+      if (!m || !m[1]) return 0.0;
+
+      let numStr = m[1].replace(/\.$/, "");
+
+      if (/^2\d{2},\d{3}(?:\.\d{1,2})?$/.test(numStr)) {
+        numStr = numStr.slice(1);
+      } else if (/^2\d{2},\d{2},\d{3}(?:\.\d{1,2})?$/.test(numStr)) {
+        numStr = numStr.slice(1);
+      } else if (!markerFound && /^2(?:[1-9],\d{3}|\d{3,6})(?:\.\d{1,2})?$/.test(numStr)) {
+        numStr = numStr.slice(1);
+      }
+
+      const val = parseFloat(numStr.replace(/,/g, ""));
+      if (isNaN(val) || val >= 1000000000) return 0.0;
+      return val;
+    }
+
+    function parseReceiptTextJS(rawText, filename) {
+      const lines = String(rawText || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const joined = lines.join("\n");
+
+      const candidateAmounts = [];
+      const labelPatterns = [
+        /(?:Transaction\s*Amount|Transfer\s*Amount|Total\s*Amount|Amount\s*Paid|Paid\s*Amount|Debited\s*Amount)[\s\n:]*([^\n]+(?:\n[₹Rs.INRAEDUSDzZ27=?\s0-9,.]+)?)/gi,
+        /\bAmount[\s\n:]+([₹Rs.INRAEDUSDzZ27=?\s0-9,]+(?:\.[0-9]{1,2})?)/gi
+      ];
+      for (const pat of labelPatterns) {
+        let m;
+        while ((m = pat.exec(joined)) !== null) {
+          const sublines = m[1].trim().split(/\r?\n/);
+          for (const sl of sublines) {
+            if (!sl.trim() || /Exchange\s*Rate|Charges|Fee/i.test(sl)) continue;
+            const v = cleanOcrAmountJS(sl);
+            if (v > 0) {
+              candidateAmounts.push(v);
+              break;
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/(?:Transaction\s*ID|Receipt\s*No|UTR|RRN|IFSC|Exchange\s*Rate|Charges|Fee|\b\d{1,2}:\d{2}\s*(?:AM|PM)\b|\bon\s+\d{1,2}\s+[A-Za-z]{3})/i.test(line)) {
+          continue;
+        }
+        if (/^(?:Paid\s*to|Sent\s*to|Debited\s*from|To)\b/i.test(line)) {
+          for (const offset of [0, 1, 2]) {
+            if (i + offset < lines.length) {
+              const tl = lines[i + offset];
+              if (/\b\d{1,2}:\d{2}\b|UTR|Transaction\s*ID|Bank/i.test(tl)) continue;
+              const tm = tl.match(/(?:[₹$]|Rs\.?|INR|AED|\s)([27]?\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d{3,7}\.\d{2})\s*(?:AED|INR|Rs\.?)?\s*$/i);
+              if (tm) {
+                const v = cleanOcrAmountJS(tm[0]);
+                if (v > 0) candidateAmounts.push(v);
+              }
+            }
+          }
+        }
+        const expCurr = line.match(/(?:₹|Rs\.?|INR)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)|([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:AED|INR|USD)\b/i);
+        if (expCurr) {
+          const v = cleanOcrAmountJS(expCurr[0]);
+          if (v > 0) candidateAmounts.push(v);
+        }
+      }
+
+      let amountVal = 0.0;
+      if (candidateAmounts.length > 0) {
+        const amtSet = new Set(candidateAmounts.map(a => Math.round(a)));
+        const filtered = candidateAmounts.filter(a => {
+          const s = String(Math.round(a));
+          if (s.length >= 4 && (s[0] === "2" || s[0] === "7") && amtSet.has(parseInt(s.slice(1), 10))) {
+            return false;
+          }
+          return true;
+        });
+        amountVal = filtered.length > 0 ? filtered[0] : candidateAmounts[0];
+      }
+
+      let txnId = "";
+      const tidPatterns = [
+        /(?:PhonePe\s*Transaction\s*ID|Google\s*transaction\s*ID|Transaction\s*ID|Txn\s*ID|Trans\s*ID|Receipt\s*No\.?|Order\s*ID|Reference\s*ID)[\s\n:#-]*([A-Za-z0-9\-]{6,32})/i,
+        /\b(T\d{18,25})\b/
+      ];
+      for (const pat of tidPatterns) {
+        const m = joined.match(pat);
+        if (m && m[1]) {
+          const cand = m[1].trim();
+          if (!/^(SUCCESS|SUCCESSFUL|COMPLETED|TRANSACTION|DETAILS)$/i.test(cand)) {
+            txnId = cand;
+            break;
+          }
+        }
+      }
+
+      let rrn = "";
+      const rrnPatterns = [
+        /(?:Transaction\s*RRN|RRN\s*(?:No\.?)?|UTR\s*(?:No\.?|Number)?|UPI\s*Ref\.?\s*(?:No\.?|ID)?|UPI\s*transaction\s*ID|IMPS\s*Ref\.?\s*(?:No\.?)?)[\s\n:#-]*([0-9A-Za-z]{10,20})/i,
+        /\bUTR[\s:#-]*([0-9]{10,16})\b/i
+      ];
+      for (const pat of rrnPatterns) {
+        const m = joined.match(pat);
+        if (m && m[1]) {
+          rrn = m[1].trim();
+          break;
+        }
+      }
+      if (!rrn) {
+        for (const line of lines) {
+          if (!/A\/C|Account|Number|Mobile|Phone/i.test(line)) {
+            const m12 = line.match(/\b(\d{12})\b/);
+            if (m12 && m12[1] !== txnId) {
+              rrn = m12[1];
+              break;
+            }
+          }
+        }
+      }
+      if (!txnId && rrn) txnId = rrn;
+      if (!rrn && txnId) rrn = txnId;
+
+      let dateTime = "—";
+      const dtPatterns = [
+        /(\d{1,2}:\d{2}\s*(?:AM|PM)\s+on\s+\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i,
+        /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\s*(?:,|at|\s)\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+        /([A-Za-z]{3,9}\s+\d{1,2}\s*,?\s*\d{4}\s*(?:,|at|\s)\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)/i,
+        /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*,?\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+        /(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i
+      ];
+      for (const pat of dtPatterns) {
+        const m = joined.match(pat);
+        if (m && m[1]) {
+          let rawDt = m[1].trim();
+          if (!/\b(?:AM|PM)\s+on\s+\d/i.test(rawDt)) {
+            rawDt = rawDt.replace(/(\b(?:AM|PM)\b).*$/i, "$1");
+          }
+          dateTime = rawDt.trim();
+          break;
+        }
+      }
+
+      let receiverName = "", receiverAccount = "", receiverIfsc = "", receiverBank = "";
+
+      const bnameM = joined.match(/(?:Banking\s*Name|Account\s*Name|Beneficiary\s*Name)[\s:.\-]+([A-Za-z][A-Za-z .]{2,45})/i);
+      if (bnameM) receiverName = bnameM[1].replace(/\s+/g, " ").trim();
+
+      const accNumM = joined.match(/(?:Account\s*Number|BENEFICIARY\s*ACCOUNT)[\s:.\-]*([XK*0-9]{6,22})/i);
+      if (accNumM) receiverAccount = normalizeMaskedAccountJS(accNumM[1]);
+
+      const ifscTopM = joined.match(/\b([A-Z]{4}[0O][A-Z0-9O]{6})\b/);
+      if (ifscTopM) receiverIfsc = cleanIfscJS(ifscTopM[1]);
+
+      let toBlock = "";
+      const toM = joined.match(/(?:^|\n)\s*(?:Paid\s*to|Sent\s*to|Beneficiary\s*details|To)\s*[:\-]?\s*\n([\s\S]*?)(?=(?:\n\s*(?:Banking\s*Name|Transfer\s*Details|PhonePe\s*Transaction|Transaction\s*ID|Debited\s*from|From\b|UTR\b|Powered\s*by|Account\s*Summary))|$)/i);
+      if (toM && toM[1]) toBlock = toM[1].trim();
+
+      if (toBlock) {
+        const ifscBlockM = toBlock.match(/\b([A-Z]{4}[0O][A-Z0-9O]{6})\b/);
+        if (ifscBlockM) receiverIfsc = cleanIfscJS(ifscBlockM[1]);
+
+        const toLines = toBlock.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        for (const l of toLines) {
+          let cl = l.replace(/^[^A-Za-z0-9XK*]+/, "").trim();
+          cl = cl.replace(/\s+(?:[₹$]|Rs\.?|INR|AED)?\s*[0-9,]+(?:\.\d{1,2})?\s*$/i, "").trim();
+
+          const accM = cl.match(/(?:A\/C(?:\s*No\.?)?|Account\s*Number|Account)?[\s:\-]*([XK*]{4,}\s*[0-9]{3,8}|\b\d{9,18}\b)/i);
+          if (accM) {
+            const candAcc = normalizeMaskedAccountJS(accM[1]);
+            if (candAcc !== rrn && candAcc !== txnId) receiverAccount = candAcc;
+          }
+
+          if (!receiverName) {
+            const nameCand = cl.replace(/^(?:Account\s*Name|Name)[\s:\-]+/i, "").trim();
+            if (/^[A-Za-z][A-Za-z .]{2,42}$/.test(nameCand) && !/\b(BANK|IFSC|IMPS|NEFT|UPI|ACCOUNT|NUMBER|NICKNAME|COUNTRY|ADDRESS|DUBAI|TRANSFER|SUCCESS|FDRL)\b/i.test(nameCand)) {
+              receiverName = nameCand;
+            }
+          }
+        }
+      }
+
+      const refNumber = (rrn && rrn !== "N/A") ? rrn : (txnId || "—");
+
+      return {
+        id: "rec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+        filename: filename || "receipt.jpg",
+        reference_number: refNumber,
+        transaction_id: txnId || refNumber,
+        rrn: rrn || refNumber,
+        date_time: dateTime,
+        amount_numeric: amountVal,
+        receiver_name: receiverName,
+        receiver_account: receiverAccount,
+        receiver_ifsc: receiverIfsc,
+        receiver_bank: receiverBank,
+        raw_text: joined
+      };
+    }
+
+    // =========================================================================
+    // RENDER & TWO-WAY BINDING
+    // =========================================================================
+    function syncMetaInputsFromState() {
+      document.getElementById("metaAccountInput").value = receiptMeta.beneficiary_account;
+      document.getElementById("metaIfscInput").value = receiptMeta.ifsc_code;
+      document.getElementById("metaPurposeInput").value = receiptMeta.transfer_purpose;
+      document.getElementById("metaMethodInput").value = receiptMeta.transfer_method;
+      document.getElementById("metaNotesInput").value = receiptMeta.additional_notes;
+      document.getElementById("metaTitleInput").value = receiptMeta.title;
+      document.getElementById("metaSubtitleInput").value = receiptMeta.subtitle;
+      document.getElementById("metaBadgeInput").value = receiptMeta.badge;
+      document.getElementById("metaGrandLabelInput").value = receiptMeta.grand_total_label;
+      document.getElementById("metaFooterLeftInput").value = receiptMeta.footer_left;
+      document.getElementById("metaNoticeInput").value = receiptMeta.notice_text;
+    }
+
+    function renderReceiptPreviewOnly() {
+      document.getElementById("previewTitle").textContent = receiptMeta.title || "Consolidated Payment Receipt";
+      document.getElementById("previewSubtitle").textContent = receiptMeta.subtitle || "Statement of Successful Money Transfers";
+      document.getElementById("previewBadge").textContent = (receiptMeta.badge || "PAID IN FULL").toUpperCase();
+
+      document.getElementById("previewAccount").textContent = receiptMeta.beneficiary_account.trim() || "—";
+      document.getElementById("previewIfsc").textContent = receiptMeta.ifsc_code.trim() || "—";
+      document.getElementById("previewPurpose").textContent = receiptMeta.transfer_purpose.trim() || "Withdrawal";
+      document.getElementById("previewMethod").textContent = receiptMeta.transfer_method.trim() || "IMPS / NEFT";
+
+      const notesClean = (receiptMeta.additional_notes || "").trim();
+      const summaryBox = document.getElementById("previewSummaryBox");
+      const notesCol = document.getElementById("previewNotesCol");
+      const previewNotes = document.getElementById("previewNotes");
+
+      if (notesClean.length > 0) {
+        summaryBox.classList.add("has-notes");
+        notesCol.classList.remove("hidden");
+        previewNotes.textContent = notesClean;
+      } else {
+        summaryBox.classList.remove("has-notes");
+        notesCol.classList.add("hidden");
+        previewNotes.textContent = "";
+      }
+
+      // Table Rows
+      const tbody = document.getElementById("previewTableBody");
+      tbody.innerHTML = "";
+      let grandTotal = 0;
+
+      if (receiptsState.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td colspan="4" style="text-align: center; color: #94A3B8; padding: 24px 16px;">
+            No transactions added yet — upload receipt images or click "+ Add Row" to populate.
+          </td>
+        `;
+        tbody.appendChild(tr);
+      } else {
+        receiptsState.forEach((rec, idx) => {
+          const amt = Number(rec.amount_numeric) || 0;
+          grandTotal += amt;
+          const refNo = rec.reference_number || rec.rrn || rec.transaction_id || "—";
+          const dt = rec.date_time || "—";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="col-num">${idx + 1}</td>
+            <td class="col-ref" contenteditable="true" spellcheck="false" data-row-id="${rec.id}" data-row-field="reference_number">${escapeHtml(refNo)}</td>
+            <td class="col-dt" contenteditable="true" spellcheck="false" data-row-id="${rec.id}" data-row-field="date_time">${escapeHtml(dt)}</td>
+            <td class="col-amt" contenteditable="true" spellcheck="false" data-row-id="${rec.id}" data-row-field="amount_numeric">${escapeHtml(formatRupee(amt))}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Bind contenteditable table cells
+      tbody.querySelectorAll("[data-row-id]").forEach(cell => {
+        cell.addEventListener("blur", (e) => {
+          const id = e.currentTarget.getAttribute("data-row-id");
+          const field = e.currentTarget.getAttribute("data-row-field");
+          const rec = receiptsState.find(x => x.id === id);
+          if (!rec) return;
+          const textVal = e.currentTarget.textContent.trim();
+          if (field === "amount_numeric") {
+            const parsed = parseFloat(textVal.replace(/[^0-9.-]/g, "")) || 0;
+            rec.amount_numeric = parsed;
+          } else {
+            rec[field] = textVal;
+            if (field === "reference_number") rec.rrn = textVal;
+          }
+          renderAll();
+        });
+      });
+
+      document.getElementById("previewGrandLabel").textContent = receiptMeta.grand_total_label || "Grand Total Paid Amount";
+      document.getElementById("previewGrandValue").textContent = formatRupee(grandTotal);
+
+      // Notice box formatting (bold 'Notice:')
+      const noticeBox = document.getElementById("previewNoticeBox");
+      const rawNotice = (receiptMeta.notice_text || "").trim();
+      if (rawNotice.toLowerCase().startsWith("notice:")) {
+        const after = rawNotice.slice(7).trim();
+        noticeBox.innerHTML = `<strong>Notice:</strong> ${escapeHtml(after)}`;
+      } else {
+        noticeBox.textContent = rawNotice;
+      }
+
+      document.getElementById("previewFooterLeft").textContent = receiptMeta.footer_left || "Consolidated Transaction Record";
+      const txWord = receiptsState.length === 1 ? "transaction" : "transactions";
+      document.getElementById("previewFooterRight").textContent = `${receiptsState.length} ${txWord}`;
+    }
+
+    function renderAll() {
+      syncMetaInputsFromState();
+      renderReceiptPreviewOnly();
+
+      const editorList = document.getElementById("txEditorList");
+      const screenshotsGrid = document.getElementById("screenshotsGrid");
+      document.getElementById("editorTxCount").textContent = String(receiptsState.length);
+
+      editorList.innerHTML = "";
+      screenshotsGrid.innerHTML = "";
+
+      if (receiptsState.length === 0) {
+        editorList.innerHTML = `
+          <div style="text-align: center; padding: 18px 12px; color: var(--text-muted); font-size: 12.5px; background: #F8FAFC; border-radius: 10px; border: 1px dashed #CBD5E1;">
+            No transactions yet. Select receipt images above to extract automatically.
+          </div>
+        `;
+        return;
+      }
+
+      receiptsState.forEach((rec, idx) => {
+        const refNo = rec.reference_number || rec.rrn || rec.transaction_id || "";
+        const amt = Number(rec.amount_numeric) || 0;
+
+        const card = document.createElement("div");
+        card.className = "tx-edit-card";
+        card.innerHTML = `
+          <div class="tx-edit-hdr">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="tx-num-badge">#${idx + 1}</span>
+              <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600;">${escapeHtml(rec.filename || "Transaction")}</span>
+            </div>
+            <button type="button" data-remove="${rec.id}" class="btn btn-danger-soft remove-row-btn" style="padding: 3px 9px; font-size: 11px;">
+              Remove
+            </button>
+          </div>
+          <div class="fields-grid-2">
+            <div class="field-group">
+              <label class="field-label">Reference Number</label>
+              <input type="text" data-id="${rec.id}" data-field="reference_number" value="${escapeAttr(refNo)}" class="field-input mono row-edit-input" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Amount (₹)</label>
+              <input type="number" step="0.01" data-id="${rec.id}" data-field="amount_numeric" value="${amt}" class="field-input mono row-edit-input" style="color: #047857; font-weight: 800;" />
+            </div>
+            <div class="field-group full-span">
+              <label class="field-label">Payment Date &amp; Time</label>
+              <input type="text" data-id="${rec.id}" data-field="date_time" value="${escapeAttr(rec.date_time)}" class="field-input row-edit-input" />
+            </div>
+          </div>
+        `;
+        editorList.appendChild(card);
+
+        if (rec.imageDataUrl) {
+          const sc = document.createElement("div");
+          sc.className = "screenshot-card";
+          sc.innerHTML = `
+            <div class="screenshot-img-wrap">
+              <img src="${rec.imageDataUrl}" alt="${escapeAttr(rec.filename)}" />
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-primary);">#${idx + 1} • ${escapeHtml(rec.filename)}</div>
+          `;
+          screenshotsGrid.appendChild(sc);
+        }
+      });
+
+      editorList.querySelectorAll(".row-edit-input").forEach(inp => {
+        inp.addEventListener("input", (e) => {
+          const id = e.target.getAttribute("data-id");
+          const field = e.target.getAttribute("data-field");
+          const rec = receiptsState.find(x => x.id === id);
+          if (!rec) return;
+          if (field === "amount_numeric") {
+            rec.amount_numeric = parseFloat(e.target.value) || 0;
+          } else {
+            rec[field] = e.target.value;
+            if (field === "reference_number") rec.rrn = e.target.value;
+          }
+          renderReceiptPreviewOnly();
+        });
+      });
+
+      editorList.querySelectorAll(".remove-row-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const id = e.currentTarget.getAttribute("data-remove");
+          receiptsState = receiptsState.filter(x => x.id !== id);
+          renderAll();
+          showToast("Transaction row removed.", "info");
+        });
+      });
+    }
+
+    // =========================================================================
+    // BATCH IMAGE UPLOAD & OCR EXTRACTION
+    // =========================================================================
+    function preprocessImageFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const origDataUrl = e.target.result;
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const scale = img.width < 600 ? 800 / img.width : 1;
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const g = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+              d[i] = d[i + 1] = d[i + 2] = g;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            resolve({ origDataUrl, grayDataUrl: canvas.toDataURL("image/png") });
+          };
+          img.onerror = reject;
+          img.src = origDataUrl;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function autoPopulateBeneficiaryMeta(newRecords) {
+      for (const r of newRecords) {
+        if (!receiptMeta.beneficiary_account && r.receiver_account && r.receiver_account !== "N/A") {
+          receiptMeta.beneficiary_account = r.receiver_account;
+        }
+        if (!receiptMeta.ifsc_code && r.receiver_ifsc && r.receiver_ifsc !== "N/A") {
+          receiptMeta.ifsc_code = r.receiver_ifsc;
+        }
+      }
+    }
+
+    async function handleBatchUpload(fileList) {
+      const files = Array.from(fileList);
+      if (!files.length) return;
+
+      const progressWrap = document.getElementById("ocrProgressWrap");
+      const progressLabel = document.getElementById("ocrProgressLabel");
+      const progressPct = document.getElementById("ocrProgressPct");
+      const progressBar = document.getElementById("ocrProgressBar");
+
+      progressWrap.classList.remove("hidden");
+      progressBar.style.width = "8%";
+      progressPct.textContent = "8%";
+
+      // Try Python FastAPI backend first if hosted on server/Render
+      try {
+        const formData = new FormData();
+        files.forEach(f => formData.append("files", f));
+        const resp = await fetch("/api/extract", { method: "POST", body: formData });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && Array.isArray(data.records)) {
+            const added = [];
+            for (let i = 0; i < data.records.length; i++) {
+              const r = data.records[i];
+              const { origDataUrl } = await preprocessImageFile(files[i]);
+              r.id = "rec_" + Date.now() + "_" + i;
+              r.imageDataUrl = origDataUrl;
+              r.reference_number = (r.rrn && r.rrn !== "N/A") ? r.rrn : (r.transaction_id || "—");
+              receiptsState.push(r);
+              added.push(r);
+            }
+            autoPopulateBeneficiaryMeta(added);
+            progressBar.style.width = "100%";
+            progressPct.textContent = "100%";
+            setTimeout(() => progressWrap.classList.add("hidden"), 500);
+            renderAll();
+            showToast(`Extracted ${files.length} receipt image(s)!`);
+            return;
+          }
+        }
+      } catch (_) {
+        // Fallback to client-side Tesseract OCR
+      }
+
+      const added = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        progressLabel.textContent = `Extracting ${f.name} (${i + 1}/${files.length})...`;
+        try {
+          const { origDataUrl, grayDataUrl } = await preprocessImageFile(f);
+          let rawText = "";
+          if (window.Tesseract) {
+            const res = await window.Tesseract.recognize(grayDataUrl, "eng", {
+              logger: (m) => {
+                if (m.status === "recognizing text") {
+                  const pct = Math.round(((i + m.progress) / files.length) * 100);
+                  progressBar.style.width = `${pct}%`;
+                  progressPct.textContent = `${pct}%`;
+                }
+              }
+            });
+            rawText = res.data.text || "";
+          }
+          const parsed = parseReceiptTextJS(rawText, f.name);
+          parsed.imageDataUrl = origDataUrl;
+          receiptsState.push(parsed);
+          added.push(parsed);
+          autoPopulateBeneficiaryMeta(added);
+          renderAll();
+        } catch (err) {
+          showToast(`Could not process ${f.name}`, "error");
+        }
+      }
+
+      progressBar.style.width = "100%";
+      progressPct.textContent = "100%";
+      setTimeout(() => progressWrap.classList.add("hidden"), 500);
+      showToast(`Extracted ${files.length} receipt image(s)!`);
+    }
+
+    // =========================================================================
+    // EXPORT AS HIGH-RES PNG IMAGE & PDF (Exact Consolidated Payment Receipt)
+    // =========================================================================
+    function renderReceiptToCanvas() {
+      const notesLines = (receiptMeta.additional_notes || "")
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      const hasNotes = notesLines.length > 0;
+
+      const width = 1080;
+      const marginX = 76;
+      const contentW = width - 2 * marginX;
+
+      const hdrH = 156;
+      const summaryH = hasNotes ? Math.max(190, 90 + notesLines.length * 28) : 186;
+      const tblHdrH = 52;
+      const rowH = 54;
+      const numRows = Math.max(1, receiptsState.length);
+      const tblH = tblHdrH + numRows * rowH;
+      const grandH = 104;
+      const noticeH = 84;
+      const footerH = 64;
+
+      const totalH = 64 + hdrH + 36 + summaryH + 44 + 36 + tblH + 38 + grandH + 28 + noticeH + 38 + footerH + 40;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = totalH;
+      const ctx = canvas.getContext("2d");
+
+      const roundRect = (x, y, w, h, r, fill, stroke, lineW = 2) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineW; ctx.stroke(); }
+      };
+
+      // White Paper Background
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, width, totalH);
+
+      let y = 64;
+
+      // 1. Dark Navy Header Banner
+      roundRect(marginX, y, contentW, hdrH, 18, "#0F172A", null);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "800 34px 'Inter', sans-serif";
+      ctx.fillText(receiptMeta.title || "Consolidated Payment Receipt", marginX + 42, y + 56);
+
+      ctx.fillStyle = "#94A3B8";
+      ctx.font = "400 19px 'Inter', sans-serif";
+      ctx.fillText(receiptMeta.subtitle || "Statement of Successful Money Transfers", marginX + 42, y + 106);
+
+      // Green Pill Badge
+      const pillW = 168, pillH = 42;
+      const px = marginX + contentW - pillW - 42;
+      const py = y + 36;
+      roundRect(px, py, pillW, pillH, 21, "#10B981", null);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "800 15.5px 'Inter', sans-serif";
+      ctx.fillText((receiptMeta.badge || "PAID IN FULL").toUpperCase(), px + pillW / 2, py + pillH / 2 + 1);
+
+      y += hdrH + 36;
+
+      // 2. Beneficiary & Transfer Summary Box
+      roundRect(marginX, y, contentW, summaryH, 16, "#F8FAFC", "#E2E8F0", 2);
+
+      const c1X = marginX + 36;
+      const c2X = marginX + Math.round(contentW * (hasNotes ? 0.33 : 0.50));
+      const c3X = marginX + Math.round(contentW * 0.66);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#64748B";
+      ctx.font = "700 14.5px 'Inter', sans-serif";
+      ctx.fillText("BENEFICIARY ACCOUNT", c1X, y + 38);
+      ctx.fillText("IFSC CODE", c2X, y + 38);
+      ctx.fillText("TRANSFER PURPOSE", c1X, y + 116);
+      ctx.fillText("TRANSFER METHOD", c2X, y + 116);
+
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "700 22px 'Inter', sans-serif";
+      ctx.fillText(receiptMeta.beneficiary_account.trim() || "—", c1X, y + 70);
+      ctx.fillText(receiptMeta.ifsc_code.trim() || "—", c2X, y + 70);
+      ctx.fillText(receiptMeta.transfer_purpose.trim() || "Withdrawal", c1X, y + 148);
+      ctx.fillText(receiptMeta.transfer_method.trim() || "IMPS / NEFT", c2X, y + 148);
+
+      if (hasNotes) {
+        const divX = c3X - 28;
+        ctx.strokeStyle = "#E2E8F0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(divX, y + 26);
+        ctx.lineTo(divX, y + summaryH - 26);
+        ctx.stroke();
+
+        ctx.fillStyle = "#64748B";
+        ctx.font = "700 14.5px 'Inter', sans-serif";
+        ctx.fillText("ADDITIONAL NOTES", c3X, y + 38);
+
+        ctx.fillStyle = "#0F172A";
+        ctx.font = "500 18.5px 'Inter', sans-serif";
+        let ny = y + 70;
+        notesLines.slice(0, 5).forEach(ln => {
+          ctx.fillText(ln, c3X, ny);
+          ny += 28;
+        });
+      }
+
+      y += summaryH + 44;
+
+      // 3. Transaction Details Heading & Table
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "700 23px 'Inter', sans-serif";
+      ctx.fillText("Transaction Details", marginX, y);
+      y += 28;
+
+      // Table Header
+      ctx.fillStyle = "#EEF2F6";
+      ctx.fillRect(marginX, y, contentW, tblHdrH);
+      ctx.strokeStyle = "#CBD5E1";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(marginX, y + tblHdrH);
+      ctx.lineTo(marginX + contentW, y + tblHdrH);
+      ctx.stroke();
+
+      ctx.fillStyle = "#475569";
+      ctx.font = "700 16px 'Inter', sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("#", marginX + 22, y + tblHdrH / 2);
+      ctx.fillText("Reference Number", marginX + 92, y + tblHdrH / 2);
+      ctx.fillText("Payment Date & Time", marginX + 390, y + tblHdrH / 2);
+      ctx.textAlign = "right";
+      ctx.fillText("Amount (₹)", marginX + contentW - 22, y + tblHdrH / 2);
+
+      y += tblHdrH;
+
+      let grandTotal = 0;
+      if (receiptsState.length === 0) {
+        ctx.fillStyle = "#94A3B8";
+        ctx.font = "400 17px 'Inter', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("No transaction records added.", width / 2, y + rowH / 2);
+        y += rowH;
+        ctx.strokeStyle = "#F1F5F9";
+        ctx.beginPath();
+        ctx.moveTo(marginX, y);
+        ctx.lineTo(marginX + contentW, y);
+        ctx.stroke();
+      } else {
+        receiptsState.forEach((r, idx) => {
+          const amt = Number(r.amount_numeric) || 0;
+          grandTotal += amt;
+          const refNo = r.reference_number || r.rrn || r.transaction_id || "—";
+          const dt = r.date_time || "—";
+          const cy = y + rowH / 2;
+
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#0F172A";
+          ctx.font = "400 18px 'Inter', sans-serif";
+          ctx.fillText(String(idx + 1), marginX + 22, cy);
+
+          ctx.font = "700 18px 'Inter', sans-serif";
+          ctx.fillText(String(refNo), marginX + 92, cy);
+
+          ctx.font = "400 18px 'Inter', sans-serif";
+          ctx.fillText(String(dt), marginX + 390, cy);
+
+          ctx.textAlign = "right";
+          ctx.font = "500 18px 'Inter', sans-serif";
+          ctx.fillText(formatRupee(amt), marginX + contentW - 22, cy);
+
+          y += rowH;
+          ctx.strokeStyle = "#F1F5F9";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(marginX, y);
+          ctx.lineTo(marginX + contentW, y);
+          ctx.stroke();
+        });
+      }
+
+      y += 38;
+
+      // 4. Grand Total Paid Amount Banner
+      roundRect(marginX, y, contentW, grandH, 16, "#ECFDF5", "#A7F3D0", 2);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#047857";
+      ctx.font = "700 21px 'Inter', sans-serif";
+      ctx.fillText(receiptMeta.grand_total_label || "Grand Total Paid Amount", marginX + 34, y + grandH / 2);
+
+      ctx.textAlign = "right";
+      ctx.font = "800 36px 'Inter', sans-serif";
+      ctx.fillText(formatRupee(grandTotal), marginX + contentW - 34, y + grandH / 2);
+
+      y += grandH + 28;
+
+      // 5. Notice Box
+      roundRect(marginX, y, contentW, noticeH, 14, "#FFFBEB", "#FDE68A", 2);
+      const noticeFull = (receiptMeta.notice_text || "").trim();
+      let prefix = "", rest = noticeFull;
+      if (noticeFull.toLowerCase().startsWith("notice:")) {
+        prefix = "Notice: ";
+        rest = noticeFull.slice(7).trim();
+      }
+      let splitPos = rest.length > 94 ? rest.lastIndexOf(" ", 94) : rest.length;
+      if (splitPos === -1) splitPos = 94;
+      const restL1 = rest.slice(0, splitPos).trim();
+      const restL2 = rest.slice(splitPos).trim();
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#92400E";
+      const nx = marginX + 24;
+      if (prefix) {
+        ctx.font = "700 15px 'Inter', sans-serif";
+        ctx.fillText(prefix, nx, y + 29);
+        const pw = ctx.measureText(prefix).width;
+        ctx.font = "400 15px 'Inter', sans-serif";
+        ctx.fillText(restL1, nx + pw, y + 29);
+      } else {
+        ctx.font = "400 15px 'Inter', sans-serif";
+        ctx.fillText(restL1, nx, y + 29);
+      }
+      if (restL2) {
+        ctx.font = "400 15px 'Inter', sans-serif";
+        ctx.fillText(restL2, nx, y + 55);
+      }
+
+      y += noticeH + 38;
+
+      // 6. Bottom Footer
+      ctx.strokeStyle = "#E2E8F0";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(marginX, y);
+      ctx.lineTo(marginX + contentW, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#64748B";
+      ctx.font = "400 16.5px 'Inter', sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(receiptMeta.footer_left || "Consolidated Transaction Record", marginX, y + 30);
+
+      ctx.textAlign = "right";
+      const txWord = receiptsState.length === 1 ? "transaction" : "transactions";
+      ctx.fillText(`${receiptsState.length} ${txWord}`, marginX + contentW, y + 30);
+
+      return canvas;
+    }
+
+    function downloadReceiptPNG() {
+      const canvas = renderReceiptToCanvas();
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "consolidated_payment_receipt.png";
+      a.click();
+      showToast("Downloaded Consolidated Payment Receipt (PNG)!");
+    }
+
+    function downloadReceiptPDF() {
+      const canvas = renderReceiptToCanvas();
+      const imgData = canvas.toDataURL("image/png");
+      const { jsPDF } = window.jspdf;
+      const pdfW = 210;
+      const pdfH = Math.max(297, Math.round((canvas.height * pdfW) / canvas.width));
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [pdfW, pdfH] });
+      doc.addImage(imgData, "PNG", 0, 0, pdfW, (canvas.height * pdfW) / canvas.width);
+      doc.save("consolidated_payment_receipt.pdf");
+      showToast("Downloaded Consolidated Payment Receipt (PDF)!");
+    }
+
+    // =========================================================================
+    // EVENT LISTENERS
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", () => {
+      renderAll();
+
+      // Upload Dropzone & Clear Button
+      const dropzone = document.getElementById("dropzone");
+      const fileInput = document.getElementById("fileInput");
+
+      document.getElementById("selectFilesBtn").addEventListener("click", () => fileInput.click());
+      dropzone.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files.length) {
+          handleBatchUpload(e.target.files);
+          fileInput.value = "";
+        }
+      });
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dropzone-active");
+      });
+      dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dropzone-active"));
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dropzone-active");
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          handleBatchUpload(e.dataTransfer.files);
+        }
+      });
+
+      document.getElementById("clearAllBtn").addEventListener("click", () => {
+        receiptsState = [];
+        receiptMeta.beneficiary_account = "";
+        receiptMeta.ifsc_code = "";
+        receiptMeta.additional_notes = "";
+        renderAll();
+        showToast("Cleared all receipt data.", "info");
+      });
+
+      // Left-Column Meta Inputs -> Live Receipt Sync
+      const bindMetaInput = (inputId, metaKey) => {
+        const el = document.getElementById(inputId);
+        el.addEventListener("input", (e) => {
+          receiptMeta[metaKey] = e.target.value;
+          renderReceiptPreviewOnly();
+        });
+      };
+
+      bindMetaInput("metaAccountInput", "beneficiary_account");
+      bindMetaInput("metaIfscInput", "ifsc_code");
+      bindMetaInput("metaPurposeInput", "transfer_purpose");
+      bindMetaInput("metaMethodInput", "transfer_method");
+      bindMetaInput("metaNotesInput", "additional_notes");
+      bindMetaInput("metaTitleInput", "title");
+      bindMetaInput("metaSubtitleInput", "subtitle");
+      bindMetaInput("metaBadgeInput", "badge");
+      bindMetaInput("metaGrandLabelInput", "grand_total_label");
+      bindMetaInput("metaFooterLeftInput", "footer_left");
+      bindMetaInput("metaNoticeInput", "notice_text");
+
+      // Auto-Fill Additional Notes button
+      document.getElementById("autoFillNotesBtn").addEventListener("click", () => {
+        const firstRec = receiptsState[0] || {};
+        const acc = receiptMeta.beneficiary_account || firstRec.receiver_account || "";
+        const name = firstRec.receiver_name || "";
+        const ifsc = receiptMeta.ifsc_code || firstRec.receiver_ifsc || "";
+        const total = receiptsState.reduce((s, r) => s + (Number(r.amount_numeric) || 0), 0);
+        const lines = [];
+        if (acc && acc !== "—") lines.push(acc);
+        if (name && name !== "N/A") lines.push(name.toUpperCase());
+        if (ifsc && ifsc !== "—") lines.push(ifsc);
+        if (total > 0) lines.push(`AMOUNT ${Math.round(total)}`);
+        receiptMeta.additional_notes = lines.join("\n");
+        syncMetaInputsFromState();
+        renderReceiptPreviewOnly();
+        showToast("Populated Additional Notes column!");
+      });
+
+      // Direct Contenteditable Sync on Receipt Preview
+      const bindContentEditable = (previewId, metaKey) => {
+        const el = document.getElementById(previewId);
+        el.addEventListener("input", () => {
+          receiptMeta[metaKey] = el.textContent.trim();
+          syncMetaInputsFromState();
+        });
+      };
+
+      bindContentEditable("previewTitle", "title");
+      bindContentEditable("previewSubtitle", "subtitle");
+      bindContentEditable("previewBadge", "badge");
+      bindContentEditable("previewAccount", "beneficiary_account");
+      bindContentEditable("previewIfsc", "ifsc_code");
+      bindContentEditable("previewPurpose", "transfer_purpose");
+      bindContentEditable("previewMethod", "transfer_method");
+      bindContentEditable("previewNotes", "additional_notes");
+      bindContentEditable("previewGrandLabel", "grand_total_label");
+      bindContentEditable("previewNoticeBox", "notice_text");
+      bindContentEditable("previewFooterLeft", "footer_left");
+
+      // Add Row button in Transaction Rows Editor
+      document.getElementById("addBlankRowBtn").addEventListener("click", () => {
+        const now = new Date();
+        const dtFormatted = now.toLocaleDateString("en-GB") + " " + now.toLocaleTimeString("en-US");
+        receiptsState.push({
+          id: "rec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+          filename: `Manual_Entry_${receiptsState.length + 1}`,
+          reference_number: "",
+          rrn: "",
+          transaction_id: "",
+          date_time: dtFormatted,
+          amount_numeric: 0
+        });
+        renderAll();
+      });
+
+      // Toggle Source Screenshots
+      document.getElementById("showScreenshotsToggle").addEventListener("change", (e) => {
+        const sec = document.getElementById("sourceScreenshotsSection");
+        if (e.target.checked) sec.classList.remove("hidden");
+        else sec.classList.add("hidden");
+      });
+
+      // Export Buttons
+      document.getElementById("downloadPdfBtn").addEventListener("click", downloadReceiptPDF);
+      document.getElementById("downloadPngBtn").addEventListener("click", downloadReceiptPNG);
+    });
+  </script>
+</body>
+</html>
